@@ -28,9 +28,10 @@ from langchain.tools import DuckDuckGoSearchRun
 #Exercise 17
 from langchain.agents import tool
 import json
+from part2 import prompt_inputs_form, chat_completion_stream_prompt
 
 # os.environ["OPENAI_API_KEY"] = st.secrets["openapi_key"]
-# openai.api_key = st.secrets["openapi_key"]
+openai.api_key = st.secrets["openapi_key"]
 
 #Global ex 13
 cwd = os.getcwd()
@@ -85,7 +86,7 @@ def ex15():
 	# initialise database first
 	ex15_initialise()
 	# collect some data
-	ex15_collect("yoda", "I am Yoda. The Force is strong with you", "Who are you?")
+#comment sample-	ex15_collect("yoda", "I am Yoda. The Force is strong with you", "Who are you?")
 	# display data
 	# Connect to the specified database
 	conn = sqlite3.connect(DB_NAME)
@@ -98,6 +99,90 @@ def ex15():
 	df = pd.DataFrame(rows, columns=column_names)
 	st.dataframe(df)
 	conn.close()
+
+def ch15():
+	#display ex15 table
+	ex15()
+	# Prompt_template form from ex11
+	prompt_template = PromptTemplate(
+		input_variables=["occupation", "topic", "age"],
+		template="""Imagine you are a {occupation} who is an expert on the  topic of {topic} , you are going to help , teach and provide information
+						to the person who is {age} years old, if you do not not know the answer, you must tell the person , do not make any answer up""",
+	)
+	dict_inputs = prompt_inputs_form()
+	if dict_inputs:
+		input_prompt = prompt_template.format(
+			occupation=dict_inputs["occupation"],
+			topic=dict_inputs["topic"],
+			age=dict_inputs["age"],
+		)
+		st.session_state.input_prompt = input_prompt
+
+	if "input_prompt" not in st.session_state:
+		st.session_state.input_prompt = "Speak like Yoda from Star Wars"
+
+	if "memory" not in st.session_state:
+		st.session_state.memory = ConversationBufferWindowMemory(k=5)
+
+	# step 1 save the memory from your chatbot
+	# step 2 integrate the memory in the prompt_template (st.session_state.prompt_template) show a hint
+	memory_data = st.session_state.memory.load_memory_variables({})
+	st.write(memory_data)
+	st.session_state.prompt_template = f"""{st.session_state.input_prompt}
+										This is the last conversation history
+										{memory_data}
+										"""
+	st.write("new prompt template: ", st.session_state.prompt_template)
+
+	st.session_state.vectorstore = vectorstore_creator()
+
+	# Initialize chat history
+	if "msg" not in st.session_state:
+		st.session_state.msg = []
+
+	# Showing Chat history
+	for message in st.session_state.msg:
+		with st.chat_message(message["role"]):
+			st.markdown(message["content"])
+	try:
+		#
+		if prompt := st.chat_input("What is up?"):
+			# query information
+			if st.session_state.vectorstore:
+				docs = st.session_state.vectorstore.similarity_search(prompt)
+				docs = docs[0].page_content
+				# add your query prompt
+				vs_prompt = f"""You should reference this search result to help your answer,
+								{docs}
+								if the search result does not anwer the query, please say you are unable to answer, do not make up an answer"""
+			else:
+				vs_prompt = ""
+			# add query prompt to your memory prompt and send it to LLM
+			st.session_state.prompt_template = (
+				st.session_state.prompt_template + vs_prompt
+			)
+			# set user prompt in chat history
+			st.session_state.msg.append({"role": "user", "content": prompt})
+			with st.chat_message("user"):
+				st.markdown(prompt)
+
+			with st.chat_message("assistant"):
+				message_placeholder = st.empty()
+				full_response = ""
+				# streaming function
+				for response in chat_completion_stream_prompt(prompt):
+					full_response += response.choices[0].delta.get("content", "")
+					message_placeholder.markdown(full_response + "▌")
+				message_placeholder.markdown(full_response)
+			st.session_state.msg.append({"role": "assistant", "content": full_response})
+			st.session_state.memory.save_context(
+				{"input": prompt}, {"output": full_response}
+			)
+
+			ex15_collect(st.session_state.name, full_response, prompt)
+
+	except Exception as e:
+		st.error(e)
 
 # smart agents accessing the internet for free
 # https://github.com/langchain-ai/streamlit-agent/blob/main/streamlit_agent/search_and_chat.py

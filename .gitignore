@@ -7,3 +7,5 @@ References/
 pandasai.log
 exports/
 cache/
+.env
+database/

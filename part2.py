@@ -6,6 +6,7 @@ from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI
+from part1 import ch10_basebot, chat_completion_stream_prompt
 #exercise 12
 from langchain.memory import ConversationBufferWindowMemory
 #exercise 13
@@ -17,7 +18,7 @@ import os
 import tempfile
 
 # os.environ["OPENAI_API_KEY"] = st.secrets["openapi_key"]
-# openai.api_key = st.secrets["openapi_key"]
+openai.api_key = st.secrets["openapi_key"]
 
 #Global ex 13
 cwd = os.getcwd()
@@ -79,7 +80,27 @@ def ex11b():
 	dict_inputs = prompt_inputs_form()
 	if dict_inputs:
 		st.write(chain.run(dict_inputs))
-		
+
+def ch11():
+	# instead of running of the langchain, we are going to use the prompt template and run it the chatbot using format
+	prompt_template = PromptTemplate(
+		input_variables=["occupation", "topic", "age"],
+		template="""Imagine you are a {occupation} who is an expert on the  topic of {topic} , you are going to help , teach and provide information to the person who is {age} years old, if you do not not know the answer, you must tell the person , do not make any answer up""",
+	)
+	dict_inputs = prompt_inputs_form()
+	if dict_inputs:
+		input_prompt = prompt_template.format(
+			occupation=dict_inputs["occupation"],
+			topic=dict_inputs["topic"],
+			age=dict_inputs["age"],
+		)
+		# set session_state.prompt_template
+		st.session_state.prompt_template = input_prompt
+		st.write("New session_state.prompt_template: ", input_prompt)
+
+	# call the ch10() basebot with the new session_state.prompt_template
+	ch10_basebot()
+
 def ex12():
 	memory = ConversationBufferWindowMemory(k=3)
 	memory.save_context({"input": "hi"}, {"output": "whats up?"})
@@ -87,11 +108,81 @@ def ex12():
 
 	st.write(memory.load_memory_variables({}))
    
-	memory = ConversationBufferWindowMemory( k=3, return_messages=True)
+	memory = ConversationBufferWindowMemory(k=3, return_messages=True)
 	memory.save_context({"input": "hi"}, {"output": "whats up?"})
 	memory.save_context({"input": "not much"}, {"output": "what can I help you with?"})
 
 	st.write(memory.load_memory_variables({}))
+
+def ch12():
+	# Prompt_template form from ex11
+	prompt_template = PromptTemplate(
+		input_variables=["occupation", "topic", "age"],
+		template="""Imagine you are a {occupation} who is an expert on the  topic of {topic} , you are going to help , teach and provide information
+						to the person who is {age} years old, if you do not not know the answer, you must tell the person , do not make any answer up""",
+	)
+	dict_inputs = prompt_inputs_form()
+	if dict_inputs:
+		input_prompt = prompt_template.format(
+			occupation=dict_inputs["occupation"],
+			topic=dict_inputs["topic"],
+			age=dict_inputs["age"],
+		)
+	else:
+		input_prompt = "You are a helpful assistant. "
+
+	st.write("input prompt: ", input_prompt)
+
+	if "memory" not in st.session_state:
+		st.session_state.memory = ConversationBufferWindowMemory(k=3)
+		st.session_state.memory.save_context({"input": "hi"}, {"output": "whats up?"})
+		st.session_state.memory.save_context({"input": "not much"}, {"output": "what can I help you with?"})
+
+	# step 1 save the memory from your chatbot
+	# step 2 integrate the memory in the prompt_template (st.session_state.prompt_template) show a hint
+	memory_data = st.session_state.memory.load_memory_variables({})
+	st.write("Memory Data: ", memory_data)
+	st.session_state.prompt_template = f"""
+{input_prompt}										
+
+Below is the conversation history between the AI and Users so far
+
+{memory_data}
+
+"""
+
+	st.write("New prompt template: ", st.session_state.prompt_template)
+	# call the function in your base bot
+	# Initialize chat history
+	if "msg" not in st.session_state:
+		st.session_state.msg = []
+
+	# Showing Chat history
+	for message in st.session_state.msg:
+		with st.chat_message(message["role"]):
+			st.markdown(message["content"])
+	try:
+		#
+		if prompt := st.chat_input("What is up?"):
+			# set user prompt in chat history
+			st.session_state.msg.append({"role": "user", "content": prompt})
+			with st.chat_message("user"):
+				st.markdown(prompt)
+
+			with st.chat_message("assistant"):
+				message_placeholder = st.empty()
+				full_response = ""
+				# streaming function
+				for response in chat_completion_stream_prompt(prompt):
+					full_response += response.choices[0].delta.get("content", "")
+					message_placeholder.markdown(full_response + "▌")
+				message_placeholder.markdown(full_response)
+			st.session_state.msg.append({"role": "assistant", "content": full_response})
+			st.session_state.memory.save_context(
+				{"input": prompt}, {"output": full_response}
+			)
+	except Exception as e:
+		st.error(e)
 
 #exercise 13 - loading
 def upload_file_streamlit():
@@ -154,19 +245,6 @@ def ex13():
 			docs = db.similarity_search(query)
 			st.write(docs[0].page_content)
 
-def chat_completion_stream_prompt(prompt):
-	MODEL = "gpt-3.5-turbo" #consider changing this to session_state
-	response = openai.ChatCompletion.create(
-		model=MODEL,
-		messages=[
-			{"role": "system", "content": st.session_state.prompt_template},
-			{"role": "user", "content": prompt},
-		],
-		temperature= 0, # temperature
-		stream=True #stream option
-	)
-	return response
-	
 # save the vectorstore in st.session_state
 # add semantic search prompt into memory prompt
 # integrate back into your chatbot

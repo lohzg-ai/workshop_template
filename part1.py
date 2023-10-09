@@ -1,7 +1,7 @@
 import streamlit as st
 import openai
 
-# openai.api_key = st.secrets["openapi_key"]
+openai.api_key = st.secrets["openapi_key"]
 
 def ex1():
 	# Exercise 1 : Functions
@@ -10,7 +10,15 @@ def ex1():
 	name = st.text_input("Enter your name")
 	if name:
 		st.write("Hello " + name)
-		
+
+def ch1():
+	name = st.text_input("Enter your name")
+	gender = st.selectbox("State your gender", ["Male", "Female"])
+	age = st.text_input("State your age", 18)
+
+	if name and gender and age:
+		st.text(f"Hello {name}, you are {gender} and this year you are {age} years old")
+
 def ex2():
     gender = st.selectbox("State your gender", ["Male", "Female"])
     age = int(st.text_input("State your age", 18))
@@ -103,6 +111,24 @@ def ex4b():
 		st.session_state.gender = user_gender
 		st.write("gender: ", st.session_state.gender)
 
+def ch4():
+	if "name" not in st.session_state:
+		st.session_state.name = "Yoda"
+
+	if "age" not in st.session_state:
+		st.session_state.age = 999
+
+	if "gender" not in st.session_state:
+		st.session_state.gender = "male"
+
+	if "prompt_template" not in st.session_state:
+		st.session_state.prompt_template = "Speak like Yoda from Star Wars for every question that was asked, do not give a direct answer but ask more questions in the style of wise Yoda from Star Wars"
+
+	st.write("session_state.name: ", st.session_state.name)
+	st.write("session_state.age: ", st.session_state.age)
+	st.write("session_state.gender: ", st.session_state.gender)
+	st.write("session_state.prompt_template: ", st.session_state.prompt_template)
+
 def ex5():
 	st.title("My first chatbot")
 
@@ -144,7 +170,43 @@ def ex6():
 			st.markdown(response)
 		# Add assistant response to chat history
 		st.session_state.messages.append({"role": "assistant", "content": response})
+
+def ch6():
+	st.markdown("**Echo Bot CH6**")
+
+	# Initialize chat history
+	if "messages" not in st.session_state:
+		st.session_state.messages = []
+
+	# Display chat messages from history on app rerun
+	for message in st.session_state.messages:
+		with st.chat_message(message["role"]):
+			st.markdown(message["content"])
+
+	# React to user input
+	if prompt := st.chat_input("What is up?"):
 		
+		if prompt == "Hello":
+			response = "Hi there what can I do for you"
+		elif prompt == "What is your name?":
+			response = "My name is EAI , an electronic artificial being"
+		elif prompt == "How old are you?":
+			response = "Today is my birthday!"
+		else:
+			response = "I am sorry, I am unable to help you with your query"
+		
+		# Display user message in chat message container
+		with st.chat_message("user"):
+			st.markdown(prompt)		
+		# Add user message to chat history
+		st.session_state.messages.append({"role": "user", "content": prompt})
+		
+		# Display assistant response in chat message container
+		with st.chat_message("assistant"):
+			st.markdown(response)
+		# Add assistant response to chat history
+		st.session_state.messages.append({"role": "assistant", "content": response})
+
 def ex8():
 	st.title("Api Call")
 	MODEL = "gpt-3.5-turbo"
@@ -163,7 +225,45 @@ def ex8():
 	s = str(response["usage"]["total_tokens"])
 	st.markdown("**Total tokens used:**")
 	st.write(s)
-	
+
+def chat_completion(prompt):
+	MODEL = "gpt-3.5-turbo"
+	response = openai.ChatCompletion.create(
+		model=MODEL,
+		messages=[
+			{"role": "system", "content": "You are a helpful assistant."},
+			{"role": "user", "content": prompt},
+		],
+		temperature=0,
+	)
+
+	return response["choices"][0]["message"]["content"].strip()
+
+def ch8():
+	st.title("My first LLM Chatbot")
+
+	# Initialize chat history
+	if "chat_msg" not in st.session_state:
+		st.session_state.chat_msg = []
+
+	# Display chat chat_msg from history on app rerun
+	for message in st.session_state.chat_msg:
+		with st.chat_message(message["role"]):
+			st.markdown(message["content"])
+
+	# React to user input
+	if prompt := st.chat_input("What's up?"):
+		# Display user message in chat message container
+		st.chat_message("user").markdown(prompt)
+		# Add user message to chat history
+		st.session_state.chat_msg.append({"role": "user", "content": prompt})
+		reply = chat_completion(prompt)
+		# Display assistant response in chat message container
+		with st.chat_message("assistant"):
+			st.markdown(reply)
+		# Add assistant response to chat history
+		st.session_state.chat_msg.append({"role": "assistant", "content": reply})
+
 def chat_completion_stream(prompt):
 	MODEL = "gpt-3.5-turbo"
 	response = openai.ChatCompletion.create(
@@ -176,6 +276,7 @@ def chat_completion_stream(prompt):
 		stream=True,  # stream option
 	)
 	return response
+
 
 def ex9_basebot():
 	# Initialize chat history
@@ -226,3 +327,47 @@ def ex10_basebot():
 	st.write(response["choices"][0]["message"]["content"].strip())
 	st.markdown("**Total tokens:**")
 	st.write(str(response["usage"]["total_tokens"]))
+
+def chat_completion_stream_prompt(prompt):
+	MODEL = "gpt-3.5-turbo" #consider changing this to session_state
+	response = openai.ChatCompletion.create(
+		model=MODEL,
+		messages=[
+			{"role": "system", "content": st.session_state.prompt_template},
+			{"role": "user", "content": prompt},
+		],
+		temperature= 0, # temperature
+		stream=True #stream option
+	)
+	return response
+
+def ch10_basebot():
+	# call the function in your base bot
+	# Initialize chat history
+	if "msg" not in st.session_state:
+		st.session_state.msg = []
+
+	# Showing Chat history
+	for message in st.session_state.msg:
+		with st.chat_message(message["role"]):
+			st.markdown(message["content"])
+	try:
+		#
+		if prompt := st.chat_input("What is up?"):
+			#set user prompt in chat history
+			st.session_state.msg.append({"role": "user", "content": prompt})
+			with st.chat_message("user"):
+				st.markdown(prompt)
+
+			with st.chat_message("assistant"):
+				message_placeholder = st.empty()
+				full_response = ""
+				#streaming function
+				for response in chat_completion_stream_prompt(prompt):
+					full_response += response.choices[0].delta.get("content", "")
+					message_placeholder.markdown(full_response + "▌")
+				message_placeholder.markdown(full_response)
+			st.session_state.msg.append({"role": "assistant", "content": full_response})
+
+	except Exception as e:
+		st.error(e)

@@ -39,9 +39,9 @@ from pandasai import SmartDataframe
 from pandasai.llm.openai import OpenAI
 import matplotlib.pyplot as plt
 
-from part1 import ex1, ex2, ex3, ex4a, ex4b, ex5, ex6, ex8, ex9_basebot, ex10_basebot
-from part2 import ex11a, ex11b, ex12, ex13, ex14_basebot
-from part3 import ex15, ex16_agent_bot, ex17_agent_bot
+from part1 import ex1, ch1, ex2, ex3, ex4a, ex4b, ch4, ex5, ex6, ch6, ex8, ch8, ex9_basebot, ex10_basebot, ch10_basebot, chat_completion_stream_prompt
+from part2 import ex11a, ex11b, ch11, ex12, ch12, ex13, ex14_basebot, prompt_inputs_form
+from part3 import ex15, ch15, ex16_agent_bot, ex17_agent_bot
 from part4 import ex18_pandas_AI
 
 # Global ex 13
@@ -69,26 +69,34 @@ def main():
 	if "prompt_template" not in st.session_state:
 		st.session_state.prompt_template = "Speak like Yoda from Star Wars for every question that was asked, do not give a direct answer but ask more questions in the style of wise Yoda from Star Wars"
 
-	st.write("Hello world!")
+	#st.write("Hello world!")
 	# ex1()
+	# ch1()
 	# ex2()
 	# ex3()
 	# ex4a()
 	# ex4b()
+	# ch4()
 	# ex5()
 	# ex6()
+	# ch6()
 	# ex8()
+	# ch8()
 	# ex9_basebot()
 	# ex10_basebot()
+	# ch10_basebot()
 	# ex11a()
 	# ex11b()
+	# ch11()
 	# ex12()
+	# ch12()
 	# ex13()
 	# ex14_basebot()
 	# ex15()
+	# ch15()
 	# ex16_agent_bot()
 	# ex17_agent_bot()
-	# ex18_pandas_AI()
+	ex18_pandas_AI()
 
 if __name__ == "__main__":
 	main()
